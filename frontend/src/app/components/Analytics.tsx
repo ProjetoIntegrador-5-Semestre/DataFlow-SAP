@@ -223,7 +223,9 @@ export function Analytics() {
                 {m.icon}
               </div>
             </div>
-            <p className="text-3xl font-bold mb-1">{m.val}</p>
+            <p className="text-3xl font-bold mb-1 text-white">
+              {m.val}
+            </p>
             <h3 className="text-sm text-white/90 font-medium uppercase tracking-wider">
               {m.label}
             </h3>

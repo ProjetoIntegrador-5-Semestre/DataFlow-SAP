@@ -37,7 +37,8 @@ export function Layout() {
               <div className="flex items-center gap-3">
                 <div>
                   <h1 className="font-bold text-sm">SAP Script AI</h1>
-                  <p className="text-xs text-slate-400">Klabin</p>
+                  
+                  <p className="text-sm font-medium text-slate-300">Klabin</p>
                 </div>
               </div>
               <button
@@ -69,8 +70,8 @@ export function Layout() {
                 to={item.path}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
                   isActive
-                    ? "bg-white/10 text-white shadow-lg shadow-black/20"
-                    : "hover:bg-slate-700/50"
+                    ? "bg-white/10 text-white shadow-lg shadow-black/20 hover:text-blue-400"
+                    : "hover:bg-slate-700/50 text-slate-300 hover:text-blue-400"
                 } ${!sidebarOpen && "justify-center"}`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
@@ -85,37 +86,41 @@ export function Layout() {
         {/* User Profile */}
         <div className="p-4 border-t border-slate-700">
           {sidebarOpen ? (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-slate-300" />
-              </div>
-              <div className="flex-1 min-w-0">
-                {/* Nome dinâmico puxado do banco/token */}
-                <p className="font-medium text-sm truncate text-white">
-                  {user?.full_name || "Usuário Logado"}
-                </p>
-                {/* Mostra se é Admin ou email */}
-                <p className="text-xs text-slate-400 truncate">
-                  {user?.role === "admin" ? "Administrador" : "Analista"}
-                </p>
+            <>
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-slate-300" />
+                </div>
+                <div className="space-y-1">
+                  {/* Nome dinâmico puxado do banco/token */}
+                  <p className="font-semibold text-sm text-white">
+                    {user?.full_name || "Admin"}
+                  </p>
+                  {/* Mostra se é Admin ou email */}
+                  <p className="text-xs text-slate-400">
+                    {user?.role === "admin" ? "Administrador" : "Analista"}
+                  </p>
+                </div>
               </div>
 
-              {/* Botão de Sair */}
-              <button
-                onClick={logout}
-                className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
-                title="Sair do sistema"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <button
+                  onClick={logout}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700/50 hover:text-blue-400 transition-colors"
+                  title="Logout"
+                >
+                  Logout
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            </>
           ) : (
             <div
-              className="w-10 h-10 bg-slate-600 hover:bg-slate-500 cursor-pointer rounded-full flex items-center justify-center mx-auto transition-colors"
+              className="w-10 h-10 bg-slate-600 hover:bg-slate-700/50 cursor-pointer rounded-full flex items-center justify-center mx-auto transition-colors text-slate-300 hover:text-blue-400"
               onClick={logout}
               title="Sair do sistema"
             >
-              <LogOut className="w-5 h-5 text-slate-300" />
+              <LogOut className="w-5 h-5" />
             </div>
           )}
         </div>
