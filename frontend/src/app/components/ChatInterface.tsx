@@ -9,6 +9,7 @@ import {
   Copy,
   Check,
   Lightbulb,
+  User,
 } from "lucide-react";
 import { sendChatMessage, type OutputFormat } from "../lib/api";
 
@@ -17,6 +18,7 @@ type Message = {
   type: "user" | "assistant";
   content: string;
   timestamp: Date;
+  outputFormat?: OutputFormat;
   code?: {
     language: string;
     content: string;
@@ -54,6 +56,7 @@ export function ChatInterface() {
       type: "user",
       content: input,
       timestamp: new Date(),
+      outputFormat,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -303,10 +306,18 @@ in
                   className={`rounded-2xl p-4 ${
                     message.type === "user"
                       ? "bg-blue-600 text-white"
-                      : "bg-white border border-slate-200"
+                      : "bg-transparent"
                   }`}
                 >
-                  <p className="leading-relaxed">{message.content}</p>
+                  {message.type === "user" && message.outputFormat ? (
+                    <span className="inline-flex items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                      {formatOptions.find((option) => option.value === message.outputFormat)?.label ?? message.outputFormat}
+                    </span>
+                  ) : null}
+
+                  <p className={`leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
+                    {message.content}
+                  </p>
                 </div>
 
                 {message.code && (
@@ -360,8 +371,8 @@ in
               </div>
 
               {message.type === "user" && (
-                <div className="flex-shrink-0 w-10 h-10 bg-slate-300 rounded-xl flex items-center justify-center">
-                  <span className="text-slate-700 font-semibold">U</span>
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
                 </div>
               )}
             </div>
