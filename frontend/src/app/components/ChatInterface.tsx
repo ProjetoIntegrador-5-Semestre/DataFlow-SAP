@@ -306,7 +306,7 @@ in
                   className={`rounded-2xl p-4 ${
                     message.type === "user"
                       ? "bg-blue-600 text-white"
-                      : "bg-transparent"
+                      : "bg-white border border-slate-200"
                   }`}
                 >
                   {message.type === "user" && message.outputFormat ? (
