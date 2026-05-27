@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Send,
   Sparkles,
@@ -26,20 +26,87 @@ type Message = {
   visualization?: boolean;
 };
 
+type StoredMessage = Omit<Message, "timestamp"> & {
+  timestamp: string;
+};
+
+const CHAT_STORAGE_KEY = "sap-script-chat-state";
+const OUTPUT_FORMAT_STORAGE_KEY = "sap-script-chat-output-format";
+
+const initialAssistantMessage: Message = {
+  id: "1",
+  type: "assistant",
+  content:
+    "Olá! Sou seu assistente de geração de scripts SAP para Power BI. Como posso ajudar você hoje?",
+  timestamp: new Date(),
+};
+
+const allowedOutputFormats: OutputFormat[] = ["sql", "abap", "json", "powerbi"];
+
+function isValidOutputFormat(value: string | null): value is OutputFormat {
+  return !!value && allowedOutputFormats.includes(value as OutputFormat);
+}
+
+function loadMessagesFromStorage(): Message[] {
+  const rawValue = localStorage.getItem(CHAT_STORAGE_KEY);
+
+  if (!rawValue) {
+    return [initialAssistantMessage];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as StoredMessage[];
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [initialAssistantMessage];
+    }
+
+    return parsed.map((message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch {
+    return [initialAssistantMessage];
+  }
+}
+
+function loadOutputFormatFromStorage(): OutputFormat {
+  const storedValue = localStorage.getItem(OUTPUT_FORMAT_STORAGE_KEY);
+  return isValidOutputFormat(storedValue) ? storedValue : "sql";
+}
+
+function serializeMessages(messages: Message[]): StoredMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    timestamp: message.timestamp.toISOString(),
+  }));
+}
+
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      type: "assistant",
-      content:
-        "Olá! Sou seu assistente de geração de scripts SAP para Power BI. Como posso ajudar você hoje?",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(loadMessagesFromStorage);
   const [input, setInput] = useState("");
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>("sql");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(loadOutputFormatFromStorage);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    localStorage.getItem("sap-script-chat-conversation-id"),
+  );
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(serializeMessages(messages)));
+  }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem(OUTPUT_FORMAT_STORAGE_KEY, outputFormat);
+  }, [outputFormat]);
+
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem("sap-script-chat-conversation-id", conversationId);
+      return;
+    }
+
+    localStorage.removeItem("sap-script-chat-conversation-id");
+  }, [conversationId]);
 
   const suggestedQuestions = [
     "Quero ver o volume de produção por planta nos últimos 3 meses",
@@ -252,13 +319,13 @@ in
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="flex h-full min-w-0 flex-col bg-slate-50">
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col">
+      <main className="min-w-0 flex-1 flex flex-col">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 sm:px-6">
           {messages.length === 1 && (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="mx-auto w-full max-w-3xl space-y-6">
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
                   <Sparkles className="w-8 h-8 text-white" />
@@ -273,12 +340,12 @@ in
               </div>
 
               {/* Suggested Questions */}
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 {suggestedQuestions.map((question, idx) => (
                   <button
                     key={idx}
                     onClick={() => setInput(question)}
-                    className="p-4 text-left bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group"
+                    className="w-full break-words p-4 text-left bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group"
                   >
                     <Lightbulb className="w-5 h-5 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" />
                     <p className="text-sm text-slate-700">{question}</p>
@@ -291,7 +358,7 @@ in
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-4 ${message.type === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex min-w-0 gap-3 sm:gap-4 ${message.type === "user" ? "justify-end" : "justify-start"}`}
             >
               {message.type === "assistant" && (
                 <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -300,22 +367,22 @@ in
               )}
 
               <div
-                className={`max-w-3xl ${message.type === "user" ? "order-first" : ""}`}
+                className={`min-w-0 max-w-full sm:max-w-3xl ${message.type === "user" ? "order-first" : ""}`}
               >
                 <div
-                  className={`rounded-2xl p-4 ${
+                  className={`rounded-2xl p-4 break-words ${
                     message.type === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-white border border-slate-200"
                   }`}
                 >
                   {message.type === "user" && message.outputFormat ? (
-                    <span className="inline-flex items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                    <span className="inline-flex max-w-full items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
                       {formatOptions.find((option) => option.value === message.outputFormat)?.label ?? message.outputFormat}
                     </span>
                   ) : null}
 
-                  <p className={`leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
+                  <p className={`break-words leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
                     {message.content}
                   </p>
                 </div>
@@ -362,7 +429,7 @@ in
                   </div>
                 )}
 
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="mt-2 text-xs text-slate-400">
                   {message.timestamp.toLocaleTimeString("pt-BR", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -380,11 +447,11 @@ in
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 bg-white p-6">
-          <div className="max-w-4xl mx-auto">
+        <div className="border-t border-slate-200 bg-white p-4 sm:p-6">
+          <div className="mx-auto w-full max-w-4xl min-w-0">
             {/* Format Selector */}
-            <div className="flex gap-2 mb-4">
-              <span className="text-sm text-slate-600 flex items-center mr-2">
+            <div className="mb-4 flex flex-wrap gap-2">
+              <span className="mr-2 flex items-center text-sm text-slate-600">
                 Formato:
               </span>
               {formatOptions.map(({ value, label, icon: Icon }) => (
@@ -404,19 +471,19 @@ in
             </div>
 
             {/* Input */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Digite sua pergunta de negócio... Ex: Quero ver vendas por região"
-                className="flex-1 px-4 py-4 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim()}
-                className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-blue-200"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
                 <Send className="w-5 h-5" />
                 Enviar
