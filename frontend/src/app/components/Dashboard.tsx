@@ -5,7 +5,6 @@ import {
   TrendingUp,
   Clock,
   FileCode2,
-  Users,
   ArrowRight,
   Sparkles,
   Zap,
@@ -29,7 +28,6 @@ export function Dashboard() {
   const [scriptsGenerated, setScriptsGenerated] = useState(52);
   const [timeSavedHours, setTimeSavedHours] = useState(124);
   const [successRate, setSuccessRate] = useState(94);
-  const [activeUsers, setActiveUsers] = useState(8);
   const [recentScripts, setRecentScripts] =
     useState<ScriptSummary[]>(fallbackScripts);
 
@@ -42,7 +40,6 @@ export function Dashboard() {
         setScriptsGenerated(data.scripts_generated);
         setTimeSavedHours(data.time_saved_hours);
         setSuccessRate(data.success_rate);
-        setActiveUsers(data.active_users);
         setRecentScripts(
           data.recent_scripts.length ? data.recent_scripts : fallbackScripts,
         );
@@ -116,7 +113,7 @@ export function Dashboard() {
       </Link>
 
       {/* Stats Grid */}
-      <div className="grid md:grid-cols-4 gap-4 md:gap-6 mb-8">
+      <div className="grid md:grid-cols-3 gap-4 md:gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -160,18 +157,6 @@ export function Dashboard() {
             {successRate}%
           </p>
           <p className="text-sm text-slate-600">Taxa de sucesso</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Users className="w-5 h-5 text-orange-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-800 mb-1">
-            {activeUsers}
-          </p>
-          <p className="text-sm text-slate-600">Usuários ativos</p>
         </div>
       </div>
 
