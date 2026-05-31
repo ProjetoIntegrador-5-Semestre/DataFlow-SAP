@@ -133,6 +133,12 @@ def login(payload: LoginRequest):
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
     text = payload.message.strip()
+    if len(text) > 5000:
+        raise HTTPException(
+        status_code=400,
+        detail="Mensagem muito longa."
+    )
+    
     if not text:
         raise HTTPException(status_code=400, detail="Envie uma mensagem para iniciar o chat.")
 
