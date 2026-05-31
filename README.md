@@ -1,4 +1,44 @@
-# Projeto Faculdade - Visualizacao de Dados SAP
+# Projeto Faculdade - Visualização de Dados SAP
+
+## 📖 Sobre o Projeto
+
+Este projeto tem como objetivo automatizar a geração de scripts de extração de dados SAP (SQL e CDS Views) a partir de requisições em linguagem natural.
+
+A solução utiliza Inteligência Artificial, técnicas de Retrieval-Augmented Generation (RAG) e Large Language Models (LLMs) para permitir que usuários descrevam suas necessidades de negócio em linguagem natural e recebam consultas técnicas prontas para utilização.
+
+## 🎯 Problema Resolvido
+
+Em ambientes SAP, a extração de dados normalmente exige conhecimento técnico avançado em SQL, ABAP e estruturas internas do ERP.
+
+Este projeto busca reduzir essa dependência técnica, aumentando a autonomia das áreas de negócio e acelerando a construção de relatórios e dashboards.
+
+## 🚀 Funcionalidades
+
+- Geração automática de consultas SQL
+
+- Geração automática de CDS Views
+
+- Interface conversacional baseada em chat
+
+- Explicação técnica das consultas geradas
+
+- Integração com modelos de IA
+
+- Arquitetura preparada para RAG
+
+- Dashboard de visualização de métricas
+
+## 📈 Benefícios Esperados
+
+- Redução do tempo de extração de dados
+
+- Maior autonomia dos analistas
+
+- Menor dependência das equipes de TI
+
+- Aceleração na construção de dashboards
+
+- Democratização do acesso aos dados corporativos
 
 Estrutura inicial simples e multiplataforma para:
 
@@ -92,3 +132,13 @@ npm run dev
 - `/` — Dashboard
 - `/chat` — Gerador de Scripts (chat)
 - `/analytics` — Estatísticas e gráficos
+
+## 📋 Pré-requisitos
+
+Antes de executar o projeto, certifique-se de ter instalado:
+
+- Python 3.14+
+- Node.js 20+
+- npm
+- Git
+
