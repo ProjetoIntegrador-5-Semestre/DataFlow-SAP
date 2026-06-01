@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   MessageSquare,
   TrendingUp,
@@ -26,18 +26,16 @@ const fallbackScripts: ScriptSummary[] = [
 ];
 
 export function Dashboard() {
+  const location = useLocation();
   const [scriptsGenerated, setScriptsGenerated] = useState(0);
   const [timeSavedHours, setTimeSavedHours] = useState(0);
   const [successRate, setSuccessRate] = useState(0);
   const [recentScripts, setRecentScripts] =
     useState<ScriptSummary[]>(fallbackScripts);
 
-  useEffect(() => {
-    let mounted = true;
-
+  const loadSummary = () => {
     fetchDashboardSummary()
       .then((data) => {
-        if (!mounted) return;
         setScriptsGenerated(data.scripts_generated);
         setTimeSavedHours(data.time_saved_hours);
         setSuccessRate(data.success_rate);
@@ -46,14 +44,17 @@ export function Dashboard() {
         );
       })
       .catch(() => {
-        if (!mounted) return;
         setRecentScripts(fallbackScripts);
       });
+  };
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    loadSummary();
+
+    // Recarrega ao voltar para esta aba/janela
+    window.addEventListener("focus", loadSummary);
+    return () => window.removeEventListener("focus", loadSummary);
+  }, [location]);
 
   const formatTimeAgo = (createdAt: string) => {
     const created = new Date(createdAt).getTime();

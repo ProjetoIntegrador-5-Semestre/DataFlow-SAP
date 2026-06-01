@@ -133,7 +133,7 @@ def login(payload: LoginRequest):
     }
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(payload: ChatRequest) -> ChatResponse:
+def chat(payload: ChatRequest, user = Depends(get_current_user)) -> ChatResponse:
     text = payload.message.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Envie uma mensagem para iniciar o chat.")
@@ -151,6 +151,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
         reply=generated.reply,
         script=generated.script,
         language=generated.language,
+        user_id=user["id"],
     )
 
     return ChatResponse(
