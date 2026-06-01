@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Send,
   Sparkles,
@@ -40,6 +40,7 @@ export function ChatInterface() {
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("sql");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
     "Quero ver o volume de produção por planta nos últimos 3 meses",
@@ -47,6 +48,11 @@ export function ChatInterface() {
     "Liste os pedidos em aberto por região",
     "Análise de estoque por centro de distribuição",
   ];
+
+  // Auto-scroll quando novas mensagens chegam
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -88,7 +94,7 @@ export function ChatInterface() {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: "assistant",
-          content: generateResponse(input, outputFormat),
+          content: generateResponse(outputFormat),
           timestamp: new Date(),
           code: generateCode(outputFormat),
         };
@@ -255,39 +261,38 @@ in
     <div className="h-full flex flex-col bg-slate-50">
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">
-        {/* Messages */}
+        {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.length === 1 && (
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                  Como posso ajudar você hoje?
-                </h2>
-                <p className="text-slate-500">
-                  Faça perguntas em linguagem natural e receba scripts prontos
-                  para o Power BI
-                </p>
-              </div>
+          {/* Suggested Questions - Sempre Visível e Compacto */}
+          <div className="sticky top-0 bg-gradient-to-b from-slate-50 to-transparent pb-4 z-10">
+            <div className="grid md:grid-cols-2 gap-2 mb-4">
+              {suggestedQuestions.map((question, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setInput(question)}
+                  className="p-2 text-left bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all group text-xs sm:text-sm"
+                >
+                  <Lightbulb className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 mb-1 transition-colors" />
+                  <p className="text-slate-700 line-clamp-2">{question}</p>
+                </button>
+              ))}
+            </div>
+            {messages.length > 1 && <div className="border-t border-slate-200"></div>}
+          </div>
 
-              {/* Suggested Questions */}
-              <div className="grid md:grid-cols-2 gap-3">
-                {suggestedQuestions.map((question, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setInput(question)}
-                    className="p-4 text-left bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group"
-                  >
-                    <Lightbulb className="w-5 h-5 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" />
-                    <p className="text-sm text-slate-700">{question}</p>
-                  </button>
-                ))}
+          {/* Welcome Message - Apenas na primeira vez */}
+          {messages.length === 1 && (
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-3">
+                <Sparkles className="w-6 h-6 text-white" />
               </div>
+              <h2 className="text-lg font-bold text-slate-800">
+                Como posso ajudar você hoje?
+              </h2>
             </div>
           )}
 
+          {/* Messages */}
           {messages.map((message) => (
             <div
               key={message.id}
@@ -377,6 +382,9 @@ in
               )}
             </div>
           ))}
+
+          {/* Auto-scroll ref */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
