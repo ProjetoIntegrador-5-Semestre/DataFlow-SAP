@@ -11,7 +11,7 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
+  ComposedChart,
   Line,
   PieChart,
   Pie,
@@ -22,6 +22,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
 import {
   fetchDashboardSummary,
@@ -40,6 +41,7 @@ type SavingsDataRow = {
   month: string;
   fullMonth: string;
   hours: number;
+  cumulative: number;
 };
 
 // Default/fallback mock data while loading
@@ -59,12 +61,12 @@ const defaultTypeData = [
 ];
 
 const defaultSavingsData = [
-  { month: "Out", fullMonth: "Out", hours: 0 },
-  { month: "Nov", fullMonth: "Nov", hours: 0 },
-  { month: "Dez", fullMonth: "Dez", hours: 0 },
-  { month: "Jan", fullMonth: "Jan", hours: 0 },
-  { month: "Fev", fullMonth: "Fev", hours: 0 },
-  { month: "Mar", fullMonth: "Mar", hours: 0 },
+  { month: "Out", fullMonth: "Out", hours: 0, cumulative: 0 },
+  { month: "Nov", fullMonth: "Nov", hours: 0, cumulative: 0 },
+  { month: "Dez", fullMonth: "Dez", hours: 0, cumulative: 0 },
+  { month: "Jan", fullMonth: "Jan", hours: 0, cumulative: 0 },
+  { month: "Fev", fullMonth: "Fev", hours: 0, cumulative: 0 },
+  { month: "Mar", fullMonth: "Mar", hours: 0, cumulative: 0 },
 ] satisfies SavingsDataRow[];
 
 export function Analytics() {
@@ -124,14 +126,19 @@ export function Analytics() {
         }));
         setTypeData(types.length > 0 ? types : defaultTypeData);
 
-        // Transform time saved by month
-        const savings: SavingsDataRow[] = statsData.time_saved_by_month
-          .slice(-6)
-          .map((item) => ({
-            month: item.month.split(" ")[0], // "January 2025" -> "Jan"
+        // Transform time saved by month with cumulative
+        const rawSavings = statsData.time_saved_by_month.slice(-6);
+        let cumAcc = 0;
+        const savings: SavingsDataRow[] = rawSavings.map((item) => {
+          const h = Math.round(item.hours * 10) / 10;
+          cumAcc += h;
+          return {
+            month: item.month.split(" ")[0],
             fullMonth: item.month,
-            hours: Math.round(item.hours * 10) / 10, // Round to 1 decimal
-          }));
+            hours: h,
+            cumulative: Math.round(cumAcc * 10) / 10,
+          };
+        });
         setSavingsData(savings.length > 0 ? savings : defaultSavingsData);
 
         setError(null);
@@ -406,12 +413,17 @@ export function Analytics() {
             </section>
           </div>
 
-          {/* Tempo Economizado (LineChart) */}
+          {/* Tempo Economizado (ComposedChart: barras mensais + linha cumulativa) */}
           <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-xl text-slate-800">
-                Tempo Economizado (Horas)
-              </h2>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="font-bold text-xl text-slate-800">
+                  Tempo Economizado por Mês
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Horas mensais (barras) e acumulado (linha)
+                </p>
+              </div>
               <button
                 onClick={() => setShowSavingsTable(!showSavingsTable)}
                 className="flex items-center gap-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-md border focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -426,36 +438,74 @@ export function Analytics() {
               </button>
             </div>
             {!showSavingsTable ? (
-              <div className="h-[300px]">
+              <div className="h-[300px] mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
+                  <ComposedChart
                     data={savingsData}
                     role="img"
-                    aria-label="Gráfico de linha mostrando tempo economizado por mês"
+                    aria-label="Gráfico combinado de tempo economizado mensal e acumulado"
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
+                    <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 13 }} />
+                    <YAxis
+                      yAxisId="left"
+                      stroke="#64748b"
+                      tick={{ fontSize: 12 }}
+                      label={{ value: "Horas/mês", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 11, fill: "#94a3b8" } }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#10b981"
+                      tick={{ fontSize: 12 }}
+                      label={{ value: "Acumulado", angle: 90, position: "insideRight", offset: 10, style: { fontSize: 11, fill: "#10b981" } }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) =>
+                        name === "Acumulado" ? [`${value}h`, name] : [`${value}h`, "Mensal"]
+                      }
+                    />
+                    <Legend
+                      formatter={(value) =>
+                        value === "hours" ? "Mensal" : "Acumulado"
+                      }
+                    />
+                    <Bar
+                      yAxisId="left"
                       dataKey="hours"
+                      name="hours"
+                      fill="#6366f1"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={52}
+                    >
+                      <LabelList
+                        dataKey="hours"
+                        position="top"
+                        formatter={(v) => (Number(v) > 0 ? `${v}h` : "")}
+                        style={{ fontSize: 11, fill: "#6366f1", fontWeight: 600 }}
+                      />
+                    </Bar>
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="cumulative"
+                      name="Acumulado"
                       stroke="#10b981"
                       strokeWidth={3}
-                      dot={{ fill: "#10b981", r: 6 }}
-                      name="Horas"
+                      dot={{ fill: "#10b981", r: 5, strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 7 }}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[300px] overflow-auto border rounded-lg">
+              <div className="h-[300px] overflow-auto border rounded-lg mt-4">
                 <table className="w-full text-base text-left text-slate-600">
                   <thead className="bg-slate-50 sticky top-0 uppercase text-xs font-semibold">
                     <tr>
                       <th className="px-4 py-3 border-b">Mês</th>
-                      <th className="px-4 py-3 border-b text-right">Horas</th>
+                      <th className="px-4 py-3 border-b text-right">Horas no mês</th>
+                      <th className="px-4 py-3 border-b text-right">Acumulado</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -465,9 +515,10 @@ export function Analytics() {
                         className="hover:bg-slate-50 border-b last:border-0 transition-colors"
                       >
                         <td className="px-4 py-2 font-medium text-slate-800">
-                          {row.month}
+                          {row.fullMonth}
                         </td>
                         <td className="px-4 py-2 text-right">{row.hours}h</td>
+                        <td className="px-4 py-2 text-right font-semibold text-emerald-600">{row.cumulative}h</td>
                       </tr>
                     ))}
                   </tbody>

@@ -124,10 +124,6 @@ export function Dashboard() {
               </p>
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-800 mb-1">
-            {successRate}%
-          </p>
-          <p className="text-sm text-slate-600">Taxa de sucesso</p>
         </div>
       </Link>
 
