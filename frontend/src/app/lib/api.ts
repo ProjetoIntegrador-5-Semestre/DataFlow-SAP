@@ -1,3 +1,5 @@
+import { clearAuthStorage } from "./auth";
+
 export type OutputFormat = "sql" | "abap" | "json" | "powerbi";
 
 export type ScriptSummary = {
@@ -22,6 +24,7 @@ export type ChatResponse = {
 export type DashboardSummary = {
   scripts_generated: number;
   time_saved_hours: number;
+  active_users: number;
   success_rate: number;
   recent_scripts: ScriptSummary[];
 };
@@ -59,7 +62,7 @@ async function requestJson<T>(
   });
 
   if (response.status === 401) {
-    localStorage.clear();
+    clearAuthStorage();
     window.location.href = "/login";
     throw new Error("Unauthorized");
   }

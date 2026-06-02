@@ -187,6 +187,7 @@ def dashboard_summary(
     return DashboardSummary(
         scripts_generated=summary["scripts_generated"],
         time_saved_hours=summary["time_saved_hours"],
+        active_users=summary["active_users"],
         success_rate=summary["success_rate"],
         recent_scripts=[ScriptSummary(**row) for row in recent_rows],
     )

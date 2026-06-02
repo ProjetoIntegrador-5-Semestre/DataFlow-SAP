@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 
 import { authApi } from "../lib/api";
+import { ProjectLogo } from "./ProjectLogo";
 
 export function SignUp() {
   const navigate = useNavigate();
@@ -32,10 +32,8 @@ export function SignUp() {
       alert("Conta criada com sucesso!");
 
       navigate("/login");
-
     } catch (err: any) {
       setError(err.message);
-
     } finally {
       setLoading(false);
     }
@@ -44,22 +42,13 @@ export function SignUp() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
-
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
-            <Sparkles className="text-white" />
-          </div>
+          <ProjectLogo compact iconClassName="h-14 w-14 mb-4" />
 
-          <h2 className="text-2xl font-bold">
-            Criar Conta
-          </h2>
+          <h2 className="text-2xl font-bold">Criar Conta</h2>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4"
-        >
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             placeholder="Nome Completo"
@@ -102,11 +91,7 @@ export function SignUp() {
             required
           />
 
-          {error && (
-            <p className="text-red-500 text-sm">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
 
           <button
             type="submit"
@@ -119,14 +104,10 @@ export function SignUp() {
 
         <p className="mt-6 text-center text-sm">
           Já tem conta?{" "}
-          <Link
-            to="/login"
-            className="text-blue-600"
-          >
+          <Link to="/login" className="text-blue-600">
             Entrar
           </Link>
         </p>
-
       </div>
     </div>
   );

@@ -3,7 +3,6 @@ import {
   Calendar,
   TrendingUp,
   Clock,
-  Users,
   Download,
   Table,
   BarChart2,
@@ -30,14 +29,26 @@ import {
   DashboardStats,
 } from "../lib/api";
 
+type UsageDataRow = {
+  day: string;
+  date: string;
+  scripts: number;
+};
+
+type SavingsDataRow = {
+  month: string;
+  fullMonth: string;
+  hours: number;
+};
+
 // Default/fallback mock data while loading
 const defaultUsageData = [
-  { day: "Seg", scripts: 0 },
-  { day: "Ter", scripts: 0 },
-  { day: "Qua", scripts: 0 },
-  { day: "Qui", scripts: 0 },
-  { day: "Sex", scripts: 0 },
-];
+  { day: "Seg", date: "Seg", scripts: 0 },
+  { day: "Ter", date: "Ter", scripts: 0 },
+  { day: "Qua", date: "Qua", scripts: 0 },
+  { day: "Qui", date: "Qui", scripts: 0 },
+  { day: "Sex", date: "Sex", scripts: 0 },
+] satisfies UsageDataRow[];
 
 const defaultTypeData = [
   { name: "SQL", value: 0, color: "#3b82f6" },
@@ -47,23 +58,23 @@ const defaultTypeData = [
 ];
 
 const defaultSavingsData = [
-  { month: "Out", hours: 0 },
-  { month: "Nov", hours: 0 },
-  { month: "Dez", hours: 0 },
-  { month: "Jan", hours: 0 },
-  { month: "Fev", hours: 0 },
-  { month: "Mar", hours: 0 },
-];
+  { month: "Out", fullMonth: "Out", hours: 0 },
+  { month: "Nov", fullMonth: "Nov", hours: 0 },
+  { month: "Dez", fullMonth: "Dez", hours: 0 },
+  { month: "Jan", fullMonth: "Jan", hours: 0 },
+  { month: "Fev", fullMonth: "Fev", hours: 0 },
+  { month: "Mar", fullMonth: "Mar", hours: 0 },
+] satisfies SavingsDataRow[];
 
 export function Analytics() {
   const [scriptsGenerated, setScriptsGenerated] = useState(0);
   const [timeSavedHours, setTimeSavedHours] = useState(0);
-  const [activeUsers, setActiveUsers] = useState(0);
   const [successRate, setSuccessRate] = useState(0);
 
-  const [usageData, setUsageData] = useState(defaultUsageData);
+  const [usageData, setUsageData] = useState<UsageDataRow[]>(defaultUsageData);
   const [typeData, setTypeData] = useState(defaultTypeData);
-  const [savingsData, setSavingsData] = useState(defaultSavingsData);
+  const [savingsData, setSavingsData] =
+    useState<SavingsDataRow[]>(defaultSavingsData);
 
   const [showUsageTable, setShowUsageTable] = useState(false);
   const [showTypeTable, setShowTypeTable] = useState(false);
@@ -90,16 +101,17 @@ export function Analytics() {
         // Update summary metrics
         setScriptsGenerated(summaryData.scripts_generated);
         setTimeSavedHours(summaryData.time_saved_hours);
-        setActiveUsers(summaryData.active_users);
         setSuccessRate(summaryData.success_rate);
 
         // Update chart data from stats
         // Transform usage by day (last 7 days) into display format
-        const usage = statsData.usage_by_day.slice(-5).map((item) => ({
-          day: item.day.slice(0, 3), // "Monday" -> "Mon"
-          date: item.date,
-          scripts: item.count,
-        }));
+        const usage: UsageDataRow[] = statsData.usage_by_day
+          .slice(-5)
+          .map((item) => ({
+            day: item.day.slice(0, 3), // "Monday" -> "Mon"
+            date: item.date,
+            scripts: item.count,
+          }));
         setUsageData(usage.length > 0 ? usage : defaultUsageData);
 
         // Transform scripts by format with colors
@@ -112,11 +124,13 @@ export function Analytics() {
         setTypeData(types.length > 0 ? types : defaultTypeData);
 
         // Transform time saved by month
-        const savings = statsData.time_saved_by_month.slice(-6).map((item) => ({
-          month: item.month.split(" ")[0], // "January 2025" -> "Jan"
-          fullMonth: item.month,
-          hours: Math.round(item.hours * 10) / 10, // Round to 1 decimal
-        }));
+        const savings: SavingsDataRow[] = statsData.time_saved_by_month
+          .slice(-6)
+          .map((item) => ({
+            month: item.month.split(" ")[0], // "January 2025" -> "Jan"
+            fullMonth: item.month,
+            hours: Math.round(item.hours * 10) / 10, // Round to 1 decimal
+          }));
         setSavingsData(savings.length > 0 ? savings : defaultSavingsData);
 
         setError(null);
@@ -187,7 +201,7 @@ export function Analytics() {
       </section>
 
       {/* Key Metrics com H3 Semântico */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
         {[
           {
             label: "Scripts gerados",
@@ -201,12 +215,7 @@ export function Analytics() {
             color: "from-purple-600 to-purple-700",
             icon: <Clock className="w-5 h-5" />,
           },
-          {
-            label: "Usuários ativos",
-            val: activeUsers,
-            color: "from-green-600 to-green-700",
-            icon: <Users className="w-5 h-5" />,
-          },
+
           {
             label: "Taxa de sucesso",
             val: `${successRate}%`,
@@ -223,9 +232,7 @@ export function Analytics() {
                 {m.icon}
               </div>
             </div>
-            <p className="text-3xl font-bold mb-1 text-white">
-              {m.val}
-            </p>
+            <p className="text-3xl font-bold mb-1 text-white">{m.val}</p>
             <h3 className="text-sm text-white/90 font-medium uppercase tracking-wider">
               {m.label}
             </h3>

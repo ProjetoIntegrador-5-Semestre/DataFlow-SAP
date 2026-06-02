@@ -52,6 +52,7 @@ class HealthResponse(BaseModel):
 class DashboardSummary(BaseModel):
     scripts_generated: int
     time_saved_hours: float
+    active_users: int
     success_rate: int
     recent_scripts: list[ScriptSummary]
 

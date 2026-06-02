@@ -12,6 +12,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { fetchDashboardSummary, type ScriptSummary } from "../lib/api";
+import { ProjectLogo } from "./ProjectLogo";
 
 const fallbackScripts: ScriptSummary[] = [
   {
@@ -120,14 +121,24 @@ export function Dashboard() {
     win.document.write(html);
     win.document.close();
     win.focus();
-    setTimeout(() => { win.print(); }, 400);
+    setTimeout(() => {
+      win.print();
+    }, 400);
   };
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       {/* Welcome Section */}
       <div className="mb-8 flex items-start justify-between">
-        <div>
+        <div className="min-w-0">
+          <ProjectLogo
+            compact={false}
+            iconClassName="h-12 w-12"
+            titleClassName="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400"
+            subtitleClassName="text-sm font-bold text-slate-900"
+            subtitle="Klabin"
+            className="mb-4"
+          />
           <h1 className="text-3xl font-bold text-slate-800 mb-2">
             Bem-vindo ao SAP Script AI
           </h1>

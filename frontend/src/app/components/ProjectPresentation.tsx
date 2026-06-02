@@ -8,7 +8,7 @@ import {
   Brain,
   Shield,
 } from "lucide-react";
-const klabinLogo = "/favicon.svg";
+import { ProjectLogo } from "./ProjectLogo";
 
 export function ProjectPresentation() {
   return (
@@ -37,7 +37,7 @@ export function ProjectPresentation() {
               </div>
             </div>
           </div>
-          <img src={klabinLogo} alt="Klabin" className="h-16 md:h-20" />
+          <ProjectLogo compact iconClassName="h-16 w-16 md:h-20 md:w-20" />
         </div>
       </div>
 

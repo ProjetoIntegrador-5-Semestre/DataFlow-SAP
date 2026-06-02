@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Send,
   Sparkles,
@@ -13,6 +13,8 @@ import {
   FileDown,
 } from "lucide-react";
 import { sendChatMessage, type OutputFormat } from "../lib/api";
+import { ProjectLogo } from "./ProjectLogo";
+import { useAuth } from "../lib/auth";
 
 type Message = {
   id: string;
@@ -31,8 +33,9 @@ type StoredMessage = Omit<Message, "timestamp"> & {
   timestamp: string;
 };
 
-const CHAT_STORAGE_KEY = "sap-script-chat-state";
-const OUTPUT_FORMAT_STORAGE_KEY = "sap-script-chat-output-format";
+const CHAT_STORAGE_KEY_PREFIX = "sap-script-chat-state";
+const OUTPUT_FORMAT_STORAGE_KEY_PREFIX = "sap-script-chat-output-format";
+const CONVERSATION_ID_STORAGE_KEY_PREFIX = "sap-script-chat-conversation-id";
 
 const initialAssistantMessage: Message = {
   id: "1",
@@ -48,8 +51,8 @@ function isValidOutputFormat(value: string | null): value is OutputFormat {
   return !!value && allowedOutputFormats.includes(value as OutputFormat);
 }
 
-function loadMessagesFromStorage(): Message[] {
-  const rawValue = localStorage.getItem(CHAT_STORAGE_KEY);
+function loadMessagesFromStorage(storageKey: string): Message[] {
+  const rawValue = localStorage.getItem(storageKey);
 
   if (!rawValue) {
     return [initialAssistantMessage];
@@ -71,8 +74,8 @@ function loadMessagesFromStorage(): Message[] {
   }
 }
 
-function loadOutputFormatFromStorage(): OutputFormat {
-  const storedValue = localStorage.getItem(OUTPUT_FORMAT_STORAGE_KEY);
+function loadOutputFormatFromStorage(storageKey: string): OutputFormat {
+  const storedValue = localStorage.getItem(storageKey);
   return isValidOutputFormat(storedValue) ? storedValue : "sql";
 }
 
@@ -83,32 +86,76 @@ function serializeMessages(messages: Message[]): StoredMessage[] {
   }));
 }
 
+function getUserStorageKey(
+  prefix: string,
+  userId: string | number | null | undefined,
+) {
+  return `${prefix}:${userId ?? "anonymous"}`;
+}
+
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>(loadMessagesFromStorage);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>(loadOutputFormatFromStorage);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(() =>
-    localStorage.getItem("sap-script-chat-conversation-id"),
+  const { user } = useAuth();
+  const chatStorageKey = getUserStorageKey(CHAT_STORAGE_KEY_PREFIX, user?.id);
+  const outputFormatStorageKey = getUserStorageKey(
+    OUTPUT_FORMAT_STORAGE_KEY_PREFIX,
+    user?.id,
+  );
+  const conversationStorageKey = getUserStorageKey(
+    CONVERSATION_ID_STORAGE_KEY_PREFIX,
+    user?.id,
   );
 
-  useEffect(() => {
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(serializeMessages(messages)));
-  }, [messages]);
+  const [messages, setMessages] = useState<Message[]>(() =>
+    loadMessagesFromStorage(chatStorageKey),
+  );
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(() =>
+    loadOutputFormatFromStorage(outputFormatStorageKey),
+  );
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    localStorage.getItem(conversationStorageKey),
+  );
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(OUTPUT_FORMAT_STORAGE_KEY, outputFormat);
-  }, [outputFormat]);
+    localStorage.setItem(
+      chatStorageKey,
+      JSON.stringify(serializeMessages(messages)),
+    );
+  }, [chatStorageKey, messages]);
+
+  useEffect(() => {
+    localStorage.setItem(outputFormatStorageKey, outputFormat);
+  }, [outputFormat, outputFormatStorageKey]);
 
   useEffect(() => {
     if (conversationId) {
-      localStorage.setItem("sap-script-chat-conversation-id", conversationId);
+      localStorage.setItem(conversationStorageKey, conversationId);
       return;
     }
 
-    localStorage.removeItem("sap-script-chat-conversation-id");
-  }, [conversationId]);
+    localStorage.removeItem(conversationStorageKey);
+  }, [conversationId, conversationStorageKey]);
+
+  useEffect(() => {
+    const storedConversationId = localStorage.getItem(conversationStorageKey);
+    setConversationId(storedConversationId);
+  }, [conversationStorageKey]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, isLoading]);
 
   const suggestedQuestions = [
     "Quero ver o volume de produção por planta nos últimos 3 meses",
@@ -341,8 +388,13 @@ in
       .filter((m) => m.id !== "1")
       .map((m) => {
         const role = m.type === "user" ? "Você" : "IA";
-        const time = m.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        const badge = m.outputFormat ? `<span class="badge">${m.outputFormat.toUpperCase()}</span>` : "";
+        const time = m.timestamp.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const badge = m.outputFormat
+          ? `<span class="badge">${m.outputFormat.toUpperCase()}</span>`
+          : "";
         const code = m.code
           ? `<pre class="code">${m.code.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`
           : "";
@@ -387,7 +439,9 @@ ${rows}
     win.document.write(html);
     win.document.close();
     win.focus();
-    setTimeout(() => { win.print(); }, 400);
+    setTimeout(() => {
+      win.print();
+    }, 400);
   };
 
   const formatOptions = [
@@ -398,7 +452,7 @@ ${rows}
   ];
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-slate-50">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-slate-50">
       {/* Toolbar */}
       {messages.length > 1 && (
         <div className="flex justify-end px-4 pt-3 pb-1">
@@ -412,14 +466,17 @@ ${rows}
         </div>
       )}
       {/* Main Chat Area */}
-      <main className="min-w-0 flex-1 flex flex-col">
+      <main className="min-w-0 flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 sm:px-6">
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-6 sm:px-6"
+        >
           {messages.length === 1 && (
             <div className="mx-auto w-full max-w-3xl space-y-6">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-                  <Sparkles className="w-8 h-8 text-white" />
+                <div className="inline-flex items-center justify-center rounded-3xl bg-white px-4 py-3 shadow-sm shadow-slate-200 ring-1 ring-slate-200 mb-4">
+                  <ProjectLogo compact iconClassName="h-14 w-14" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">
                   Como posso ajudar você hoje?
@@ -469,11 +526,15 @@ ${rows}
                 >
                   {message.type === "user" && message.outputFormat ? (
                     <span className="inline-flex max-w-full items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
-                      {formatOptions.find((option) => option.value === message.outputFormat)?.label ?? message.outputFormat}
+                      {formatOptions.find(
+                        (option) => option.value === message.outputFormat,
+                      )?.label ?? message.outputFormat}
                     </span>
                   ) : null}
 
-                  <p className={`break-words leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
+                  <p
+                    className={`break-words leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}
+                  >
                     {message.content}
                   </p>
                 </div>
@@ -507,7 +568,12 @@ ${rows}
                           )}
                         </button>
                         <button
-                          onClick={() => downloadCodeFile(message.code!.content, message.code!.language)}
+                          onClick={() =>
+                            downloadCodeFile(
+                              message.code!.content,
+                              message.code!.language,
+                            )
+                          }
                           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
                         >
                           <Download className="w-4 h-4" />
@@ -555,7 +621,7 @@ ${rows}
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 bg-white p-4 sm:p-6">
+        <div className="shrink-0 border-t border-slate-200 bg-white p-4 sm:p-6">
           <div className="mx-auto w-full max-w-4xl min-w-0">
             {/* Format Selector */}
             <div className="mb-4 flex flex-wrap gap-2">
@@ -584,7 +650,9 @@ ${rows}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSend()}
+                onKeyPress={(e) =>
+                  e.key === "Enter" && !isLoading && handleSend()
+                }
                 disabled={isLoading}
                 placeholder="Digite sua pergunta de negócio... Ex: Quero ver vendas por região"
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"

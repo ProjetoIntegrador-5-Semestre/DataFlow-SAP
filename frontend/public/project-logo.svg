@@ -1,0 +1,41 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="frame" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102E5B" />
+      <stop offset="1" stop-color="#0B1F3F" />
+    </linearGradient>
+    <linearGradient id="bars" x1="134" y1="88" x2="214" y2="198" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#63A4FF" />
+      <stop offset="1" stop-color="#1C7CFF" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M48 40C29.2 40 14 55.2 14 74V169C14 187.8 29.2 203 48 203H78.5L92.5 226.3C94.3 229.3 97.5 231 100.9 231C106.5 231 111 226.5 111 220.9V203H208C226.8 203 242 187.8 242 169V74C242 55.2 226.8 40 208 40H48Z"
+    stroke="url(#frame)"
+    stroke-width="11"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M80 92L52 120L80 148"
+    stroke="url(#frame)"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M144 92L172 120L144 148"
+    stroke="url(#frame)"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M122 74L104 166"
+    stroke="url(#frame)"
+    stroke-width="15"
+    stroke-linecap="round"
+  />
+  <rect x="150" y="126" width="30" height="48" rx="7" fill="#56A2F8" />
+  <rect x="188" y="90" width="30" height="84" rx="7" fill="#3E8DF7" />
+  <rect x="226" y="70" width="30" height="104" rx="7" fill="url(#bars)" />
+</svg>
