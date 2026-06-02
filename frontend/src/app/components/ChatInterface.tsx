@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { sendChatMessage, type OutputFormat } from "../lib/api";
 import { ProjectLogo } from "./ProjectLogo";
+import { exportChatReport } from "./export/reports";
 import { useAuth } from "../lib/auth";
 
 type Message = {
@@ -382,67 +383,7 @@ in
     URL.revokeObjectURL(url);
   };
 
-  const exportChatPDF = () => {
-    const date = new Date().toLocaleString("pt-BR");
-    const rows = messages
-      .filter((m) => m.id !== "1")
-      .map((m) => {
-        const role = m.type === "user" ? "Você" : "IA";
-        const time = m.timestamp.toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        const badge = m.outputFormat
-          ? `<span class="badge">${m.outputFormat.toUpperCase()}</span>`
-          : "";
-        const code = m.code
-          ? `<pre class="code">${m.code.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`
-          : "";
-        return `
-          <div class="msg ${m.type}">
-            <div class="msg-header"><strong>${role}</strong>${badge}<span class="time">${time}</span></div>
-            <div class="msg-body">${m.content}</div>
-            ${code}
-          </div>`;
-      })
-      .join("");
-
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Conversa SAP Script AI</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 860px; margin: 0 auto; padding: 32px; color: #1e293b; }
-  h1 { font-size: 22px; color: #2563eb; margin-bottom: 4px; }
-  .meta { font-size: 12px; color: #94a3b8; margin-bottom: 32px; }
-  .msg { margin-bottom: 24px; padding: 16px; border-radius: 12px; page-break-inside: avoid; }
-  .msg.user { background: #eff6ff; border-left: 4px solid #2563eb; }
-  .msg.assistant { background: #f8fafc; border-left: 4px solid #7c3aed; }
-  .msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
-  .badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
-  .time { color: #94a3b8; margin-left: auto; }
-  .msg-body { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
-  .code { background: #0f172a; color: #94a3b8; padding: 16px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-wrap: break-word; margin-top: 12px; }
-  @media print { body { padding: 16px; } }
-</style>
-</head>
-<body>
-<h1>Conversa SAP Script AI</h1>
-<div class="meta">Exportado em ${date} &nbsp;|&nbsp; ${messages.length - 1} mensagens</div>
-${rows}
-</body>
-</html>`;
-
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-    }, 400);
-  };
+  // use shared export helper
 
   const formatOptions = [
     { value: "sql", label: "SQL", icon: Database },
@@ -457,7 +398,7 @@ ${rows}
       {messages.length > 1 && (
         <div className="flex justify-end px-4 pt-3 pb-1">
           <button
-            onClick={exportChatPDF}
+            onClick={() => exportChatReport(messages)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
           >
             <FileDown className="w-4 h-4" />

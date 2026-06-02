@@ -28,6 +28,7 @@ import {
   fetchDashboardStats,
   DashboardStats,
 } from "../lib/api";
+import { exportAnalyticsReport } from "./export/reports";
 
 type UsageDataRow = {
   day: string;
@@ -152,6 +153,8 @@ export function Analytics() {
     };
   }, []);
 
+  // Use shared export helper
+
   if (error) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
@@ -172,7 +175,19 @@ export function Analytics() {
             Acompanhe métricas e performance do sistema
           </p>
         </div>
-        <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none transition-all text-base font-medium">
+        <button
+          onClick={() =>
+            exportAnalyticsReport({
+              scriptsGenerated,
+              timeSavedHours,
+              successRate,
+              usageData,
+              typeData,
+              savingsData,
+            })
+          }
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none transition-all text-base font-medium"
+        >
           <Download className="w-4 h-4" aria-hidden="true" />
           Exportar Relatório
         </button>
