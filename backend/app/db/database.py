@@ -176,6 +176,19 @@ def list_recent_scripts(limit: int = 6) -> list[dict[str, Any]]:
 
     return [dict(row) for row in rows]
 
+def list_user_scripts_recent(user_id: int, limit: int = 3) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, question, output_format, reply, script, language, created_at 
+            FROM generated_scripts 
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, limit)
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 def list_conversation_messages(conversation_id: str, limit: int = 50) -> list[dict[str, Any]]:
     with get_connection() as connection:

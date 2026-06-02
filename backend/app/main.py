@@ -19,6 +19,8 @@ from .db.database import (
     get_user_by_email,
     create_user,
     list_user_scripts,
+     list_user_scripts_recent,
+    fetch_summary_for_user,
     get_scripts_by_day,
     get_scripts_by_format,
     get_time_saved_by_month,
@@ -131,7 +133,7 @@ def login(payload: LoginRequest):
     }
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(payload: ChatRequest) -> ChatResponse:
+def chat(payload: ChatRequest, user = Depends(get_current_user)) -> ChatResponse:
     text = payload.message.strip()
     if len(text) > 5000:
         raise HTTPException(
@@ -155,6 +157,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
         reply=generated.reply,
         script=generated.script,
         language=generated.language,
+        user_id=user["id"],
     )
 
     return ChatResponse(
@@ -178,15 +181,13 @@ def dashboard_summary(
     user = Depends(get_current_user)
 ) -> DashboardSummary:
 
-    scripts_generated = count_rows("generated_scripts")
-    active_users = count_distinct_conversations()
-    recent_rows = list_recent_scripts(limit=3)
+    summary = fetch_summary_for_user(user["id"])
+    recent_rows = list_user_scripts_recent(user["id"], limit=3)
 
     return DashboardSummary(
-        scripts_generated=scripts_generated,
-        time_saved_hours=round(scripts_generated * 2.4, 1),
-        success_rate=94 if scripts_generated else 0,
-        active_users=active_users,
+        scripts_generated=summary["scripts_generated"],
+        time_saved_hours=summary["time_saved_hours"],
+        success_rate=summary["success_rate"],
         recent_scripts=[ScriptSummary(**row) for row in recent_rows],
     )
 

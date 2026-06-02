@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   Send,
   Sparkles,
@@ -10,6 +10,7 @@ import {
   Check,
   Lightbulb,
   User,
+  FileDown,
 } from "lucide-react";
 import { sendChatMessage, type OutputFormat } from "../lib/api";
 
@@ -26,21 +27,88 @@ type Message = {
   visualization?: boolean;
 };
 
+type StoredMessage = Omit<Message, "timestamp"> & {
+  timestamp: string;
+};
+
+const CHAT_STORAGE_KEY = "sap-script-chat-state";
+const OUTPUT_FORMAT_STORAGE_KEY = "sap-script-chat-output-format";
+
+const initialAssistantMessage: Message = {
+  id: "1",
+  type: "assistant",
+  content:
+    "Olá! Sou seu assistente de geração de scripts SAP para Power BI. Como posso ajudar você hoje?",
+  timestamp: new Date(),
+};
+
+const allowedOutputFormats: OutputFormat[] = ["sql", "abap", "json", "powerbi"];
+
+function isValidOutputFormat(value: string | null): value is OutputFormat {
+  return !!value && allowedOutputFormats.includes(value as OutputFormat);
+}
+
+function loadMessagesFromStorage(): Message[] {
+  const rawValue = localStorage.getItem(CHAT_STORAGE_KEY);
+
+  if (!rawValue) {
+    return [initialAssistantMessage];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as StoredMessage[];
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [initialAssistantMessage];
+    }
+
+    return parsed.map((message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch {
+    return [initialAssistantMessage];
+  }
+}
+
+function loadOutputFormatFromStorage(): OutputFormat {
+  const storedValue = localStorage.getItem(OUTPUT_FORMAT_STORAGE_KEY);
+  return isValidOutputFormat(storedValue) ? storedValue : "sql";
+}
+
+function serializeMessages(messages: Message[]): StoredMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    timestamp: message.timestamp.toISOString(),
+  }));
+}
+
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      type: "assistant",
-      content:
-        "Olá! Sou seu assistente de geração de scripts SAP para Power BI. Como posso ajudar você hoje?",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(loadMessagesFromStorage);
   const [input, setInput] = useState("");
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>("sql");
+  const [isLoading, setIsLoading] = useState(false);
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(loadOutputFormatFromStorage);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    localStorage.getItem("sap-script-chat-conversation-id"),
+  );
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(serializeMessages(messages)));
+  }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem(OUTPUT_FORMAT_STORAGE_KEY, outputFormat);
+  }, [outputFormat]);
+
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem("sap-script-chat-conversation-id", conversationId);
+      return;
+    }
+
+    localStorage.removeItem("sap-script-chat-conversation-id");
+  }, [conversationId]);
 
   const suggestedQuestions = [
     "Quero ver o volume de produção por planta nos últimos 3 meses",
@@ -48,11 +116,6 @@ export function ChatInterface() {
     "Liste os pedidos em aberto por região",
     "Análise de estoque por centro de distribuição",
   ];
-
-  // Auto-scroll quando novas mensagens chegam
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -67,6 +130,7 @@ export function ChatInterface() {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setIsLoading(true);
 
     try {
       const data = await sendChatMessage({
@@ -94,16 +158,18 @@ export function ChatInterface() {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: "assistant",
-          content: generateResponse(outputFormat),
+          content: generateResponse(input, outputFormat),
           timestamp: new Date(),
           code: generateCode(outputFormat),
         };
         setMessages((prev) => [...prev, assistantMessage]);
       }, 800);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const generateResponse = (format: OutputFormat): string => {
+  const generateResponse = (_input: string, format: OutputFormat): string => {
     const responses = {
       sql: "Identifiquei que você precisa acessar as tabelas MSEG (Movimentos de Material) e MARC (Dados de Planta). Aqui está o script SQL otimizado:",
       abap: "Criei uma CDS View ABAP que acessa os dados necessários das tabelas SAP:",
@@ -250,6 +316,80 @@ in
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const extMap: Record<string, string> = {
+    sql: "sql",
+    abap: "abap",
+    json: "json",
+    powerquery: "pq",
+    powerbi: "pq",
+  };
+
+  const downloadCodeFile = (content: string, language: string) => {
+    const ext = extMap[language] ?? "txt";
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `script_sap_${Date.now()}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportChatPDF = () => {
+    const date = new Date().toLocaleString("pt-BR");
+    const rows = messages
+      .filter((m) => m.id !== "1")
+      .map((m) => {
+        const role = m.type === "user" ? "Você" : "IA";
+        const time = m.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const badge = m.outputFormat ? `<span class="badge">${m.outputFormat.toUpperCase()}</span>` : "";
+        const code = m.code
+          ? `<pre class="code">${m.code.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`
+          : "";
+        return `
+          <div class="msg ${m.type}">
+            <div class="msg-header"><strong>${role}</strong>${badge}<span class="time">${time}</span></div>
+            <div class="msg-body">${m.content}</div>
+            ${code}
+          </div>`;
+      })
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Conversa SAP Script AI</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 860px; margin: 0 auto; padding: 32px; color: #1e293b; }
+  h1 { font-size: 22px; color: #2563eb; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #94a3b8; margin-bottom: 32px; }
+  .msg { margin-bottom: 24px; padding: 16px; border-radius: 12px; page-break-inside: avoid; }
+  .msg.user { background: #eff6ff; border-left: 4px solid #2563eb; }
+  .msg.assistant { background: #f8fafc; border-left: 4px solid #7c3aed; }
+  .msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .time { color: #94a3b8; margin-left: auto; }
+  .msg-body { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+  .code { background: #0f172a; color: #94a3b8; padding: 16px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-wrap: break-word; margin-top: 12px; }
+  @media print { body { padding: 16px; } }
+</style>
+</head>
+<body>
+<h1>Conversa SAP Script AI</h1>
+<div class="meta">Exportado em ${date} &nbsp;|&nbsp; ${messages.length - 1} mensagens</div>
+${rows}
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  };
+
   const formatOptions = [
     { value: "sql", label: "SQL", icon: Database },
     { value: "abap", label: "ABAP CDS", icon: FileCode2 },
@@ -258,45 +398,58 @@ in
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="flex h-full min-w-0 flex-col bg-slate-50">
+      {/* Toolbar */}
+      {messages.length > 1 && (
+        <div className="flex justify-end px-4 pt-3 pb-1">
+          <button
+            onClick={exportChatPDF}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
+          >
+            <FileDown className="w-4 h-4" />
+            Exportar conversa (PDF)
+          </button>
+        </div>
+      )}
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col">
-        {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Suggested Questions - Sempre Visível e Compacto */}
-          <div className="sticky top-0 bg-gradient-to-b from-slate-50 to-transparent pb-4 z-10">
-            <div className="grid md:grid-cols-2 gap-2 mb-4">
-              {suggestedQuestions.map((question, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setInput(question)}
-                  className="p-2 text-left bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all group text-xs sm:text-sm"
-                >
-                  <Lightbulb className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 mb-1 transition-colors" />
-                  <p className="text-slate-700 line-clamp-2">{question}</p>
-                </button>
-              ))}
-            </div>
-            {messages.length > 1 && <div className="border-t border-slate-200"></div>}
-          </div>
-
-          {/* Welcome Message - Apenas na primeira vez */}
+      <main className="min-w-0 flex-1 flex flex-col">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 sm:px-6">
           {messages.length === 1 && (
-            <div className="text-center mb-4">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-3">
-                <Sparkles className="w-6 h-6 text-white" />
+            <div className="mx-auto w-full max-w-3xl space-y-6">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                  Como posso ajudar você hoje?
+                </h2>
+                <p className="text-slate-500">
+                  Faça perguntas em linguagem natural e receba scripts prontos
+                  para o Power BI
+                </p>
               </div>
-              <h2 className="text-lg font-bold text-slate-800">
-                Como posso ajudar você hoje?
-              </h2>
+
+              {/* Suggested Questions */}
+              <div className="grid gap-3 md:grid-cols-2">
+                {suggestedQuestions.map((question, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setInput(question)}
+                    className="w-full break-words p-4 text-left bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group"
+                  >
+                    <Lightbulb className="w-5 h-5 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" />
+                    <p className="text-sm text-slate-700">{question}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Messages */}
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-4 ${message.type === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex min-w-0 gap-3 sm:gap-4 ${message.type === "user" ? "justify-end" : "justify-start"}`}
             >
               {message.type === "assistant" && (
                 <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -305,22 +458,22 @@ in
               )}
 
               <div
-                className={`max-w-3xl ${message.type === "user" ? "order-first" : ""}`}
+                className={`min-w-0 max-w-full sm:max-w-3xl ${message.type === "user" ? "order-first" : ""}`}
               >
                 <div
-                  className={`rounded-2xl p-4 ${
+                  className={`rounded-2xl p-4 break-words ${
                     message.type === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-white border border-slate-200"
                   }`}
                 >
                   {message.type === "user" && message.outputFormat ? (
-                    <span className="inline-flex items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                    <span className="inline-flex max-w-full items-center gap-1 mb-3 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
                       {formatOptions.find((option) => option.value === message.outputFormat)?.label ?? message.outputFormat}
                     </span>
                   ) : null}
 
-                  <p className={`leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
+                  <p className={`break-words leading-relaxed ${message.type === "user" ? "text-white" : "text-slate-700"}`}>
                     {message.content}
                   </p>
                 </div>
@@ -353,7 +506,10 @@ in
                             </>
                           )}
                         </button>
-                        <button className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2">
+                        <button
+                          onClick={() => downloadCodeFile(message.code!.content, message.code!.language)}
+                          className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
                           <Download className="w-4 h-4" />
                           Exportar
                         </button>
@@ -367,7 +523,7 @@ in
                   </div>
                 )}
 
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="mt-2 text-xs text-slate-400">
                   {message.timestamp.toLocaleTimeString("pt-BR", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -383,16 +539,27 @@ in
             </div>
           ))}
 
-          {/* Auto-scroll ref */}
-          <div ref={messagesEndRef} />
+          {/* Typing indicator */}
+          {isLoading && (
+            <div className="flex gap-3 sm:gap-4 justify-start">
+              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 bg-white p-6">
-          <div className="max-w-4xl mx-auto">
+        <div className="border-t border-slate-200 bg-white p-4 sm:p-6">
+          <div className="mx-auto w-full max-w-4xl min-w-0">
             {/* Format Selector */}
-            <div className="flex gap-2 mb-4">
-              <span className="text-sm text-slate-600 flex items-center mr-2">
+            <div className="mb-4 flex flex-wrap gap-2">
+              <span className="mr-2 flex items-center text-sm text-slate-600">
                 Formato:
               </span>
               {formatOptions.map(({ value, label, icon: Icon }) => (
@@ -412,19 +579,20 @@ in
             </div>
 
             {/* Input */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSend()}
+                disabled={isLoading}
                 placeholder="Digite sua pergunta de negócio... Ex: Quero ver vendas por região"
-                className="flex-1 px-4 py-4 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim()}
-                className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-blue-200"
+                disabled={!input.trim() || isLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
                 <Send className="w-5 h-5" />
                 Enviar

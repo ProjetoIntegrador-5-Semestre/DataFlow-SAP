@@ -53,7 +53,6 @@ class DashboardSummary(BaseModel):
     scripts_generated: int
     time_saved_hours: float
     success_rate: int
-    active_users: int
     recent_scripts: list[ScriptSummary]
 
 

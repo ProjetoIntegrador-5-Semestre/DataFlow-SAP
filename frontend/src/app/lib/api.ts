@@ -23,7 +23,6 @@ export type DashboardSummary = {
   scripts_generated: number;
   time_saved_hours: number;
   success_rate: number;
-  active_users: number;
   recent_scripts: ScriptSummary[];
 };
 

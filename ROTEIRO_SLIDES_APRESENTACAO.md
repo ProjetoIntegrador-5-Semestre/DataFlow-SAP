@@ -15,77 +15,88 @@
 ## Slide 3 - Objetivo do projeto
 
 - Gerar scripts tecnicos a partir de linguagem natural
-- Suportar multiplos formatos (SQL, ABAP, JSON, Power Query)
-- Persistir historico e indicadores de uso
+- Suportar multiplos formatos: SQL, ABAP CDS, JSON, Power Query (M)
+- Persistir historico e indicadores de uso por usuario
 
 ## Slide 4 - Solucao proposta
 
-- Interface de chat para perguntas de negocio
-- Backend com IA para geracao de scripts
-- Banco para historico e metricas
+- Interface de chat para perguntas em linguagem natural
+- Backend com IA para geracao de scripts (OpenAI-compatible + fallback local)
+- Banco de dados para historico, metricas e rastreabilidade
+- PWA instalavel como app no celular
 
 ## Slide 5 - Arquitetura
 
-- Frontend React
-- Backend FastAPI
-- Banco SQLite
-- Servico de IA (OpenAI-compatible + fallback)
-- Fluxo: usuario -> API -> IA -> banco -> dashboard
+- Frontend: React 19 + TypeScript + Vite + Tailwind
+- Backend: Python 3.14 + FastAPI
+- Banco: SQLite com migracao automatica
+- Servico de IA: OpenAI-compatible com fallback sem chave
+- Fluxo: usuario -> API (JWT) -> IA -> banco -> dashboard por usuario
 
-## Slide 6 - Backend em funcionamento
+## Slide 6 - O que foi construido: Sprint 1
 
-- Endpoints de auth, chat, scripts e dashboard
-- JWT para seguranca
-- Criacao automatica de tabelas
-- Usuario admin default para bootstrap
+- Estrutura base do projeto (frontend + backend)
+- Autenticacao completa: registro, login, JWT + bcrypt
+- Banco SQLite com tabelas users, chat_messages, generated_scripts
+- Endpoints de auth operacionais
 
-## Slide 7 - Banco de dados
+## Slide 7 - O que foi construido: Sprint 2
 
-- Tabela users
-- Tabela chat_messages
-- Tabela generated_scripts
-- Exemplo de rastreabilidade: quem perguntou, o que foi gerado, quando
+- Interface de chat com envio de perguntas e geracao de scripts
+- Suporte a 4 formatos de saida (SQL, ABAP, JSON, Power BI M)
+- Historico de conversa persistido no banco
+- Scripts vinculados ao usuario (rastreabilidade)
 
-## Slide 8 - IA e geracao de queries
+## Slide 8 - O que foi construido: Sprint 3
 
-- Prompt orientado para SAP
-- Formatos de saida suportados
-- Fallback local sem chave para continuidade
-- Cenario atual: ambiente sem chave real, mas fluxo operacional
+- Dashboard com metricas exclusivas por usuario (scripts gerados, tempo economizado, taxa de sucesso)
+- Scripts recentes filtrados por usuario
+- Pagina de Analytics com graficos (uso por dia, por formato, tempo economizado por mes)
+- Loading visual no chat (indicador de digitacao)
 
-## Slide 9 - Demo (ao vivo)
+## Slide 9 - O que foi construido: Sprint 4
 
-- Login
+- Exportacao de scripts como arquivo (.sql, .abap, .pq, .json)
+- Exportacao de conversa completa como PDF
+- Exportacao de relatorio do dashboard como PDF
+- PWA: manifesto, service worker, instalavel na home screen
+
+## Slide 10 - Banco de dados
+
+- Tabela users: id, email, senha bcrypt, nome
+- Tabela chat_messages: conversation_id, role, content, created_at
+- Tabela generated_scripts: user_id, question, format, script, language, created_at
+- Rastreabilidade: quem perguntou, o que foi gerado, quando
+
+## Slide 11 - IA e geracao de queries
+
+- Prompt orientado para contexto SAP (tabelas MSEG, MARC, VBRK, EKKO, etc)
+- Formatos de saida configurados pelo usuario antes de enviar
+- Fallback local garante funcionamento sem chave de API
+- Servico mock SAP simula estrutura de dados reais
+
+## Slide 12 - Demo (ao vivo)
+
+- Cadastro de novo usuario
+- Login e redirecionamento para dashboard zerado
 - Envio de pergunta no chat
-- Script gerado
-- Registro no banco
-- Dashboard atualizado
+- Script gerado com loading visual
+- Exportar script como arquivo
+- Dashboard atualizado com os dados do usuario
+- Exportar relatorio PDF
 
-## Slide 10 - Resultados parciais
+## Slide 13 - Gaps e proximos passos
 
-- Fluxo ponta a ponta operacional
-- Persistencia e monitoramento basico
-- Base pronta para escalar integracao SAP real
+- Sem conector SAP real: proximo passo natural apos validacao academica
+- SQLite adequado para o escopo atual; PostgreSQL para producao
+- RBAC e auditoria avancada como evolucao de governanca
+- Observabilidade (logs, tracing) para ambiente corporativo
 
-## Slide 11 - Gaps e riscos
+## Slide 14 - Conclusao
 
-- Sem conector SAP real no momento
-- SQLite nao e banco de producao para alta concorrencia
-- Necessidade de governanca para execucao segura de queries
+- Projeto entrega fluxo completo ponta a ponta operacional
+- Cada usuario tem seu proprio historico, metricas e exportacoes
+- Demonstra viabilidade real de IA aplicada ao contexto SAP
+- Base solida e pronta para evoluir com conector SAP real
 
-## Slide 12 - Roadmap tecnico
-
-- Sprint 1: conector SAP + health SAP
-- Sprint 2: preview seguro de query + catalogo de tabelas
-- Sprint 3: RBAC e auditoria avancada
-- Sprint 4: migracao para PostgreSQL + observabilidade
-
-## Slide 13 - Conclusao
-
-- Projeto ja entrega valor academico e tecnico
-- Demonstra viabilidade de IA aplicada ao contexto SAP
-- Proximo passo e a conexao direta com dados SAP corporativos
-
-## Slide 14 - Perguntas
-
-- Abertura para duvidas da banca
+aa
