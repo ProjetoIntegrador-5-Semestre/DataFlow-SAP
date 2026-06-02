@@ -1,4 +1,4 @@
-# Projeto Faculdade - Visualização de Dados SAP
+# Projeto Faculdade - DataFlow SAP
 
 ## 📖 Sobre o Projeto
 
