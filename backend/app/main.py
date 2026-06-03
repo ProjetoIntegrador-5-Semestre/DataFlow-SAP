@@ -171,8 +171,8 @@ def chat(payload: ChatRequest, user = Depends(get_current_user)) -> ChatResponse
 
 
 @app.get("/api/scripts", response_model=list[ScriptSummary])
-def get_scripts() -> list[ScriptSummary]:
-    rows = list_recent_scripts(limit=12)
+def get_scripts(user = Depends(get_current_user)) -> list[ScriptSummary]:
+    rows = list_user_scripts(user["id"])
     return [ScriptSummary(**row) for row in rows]
 
 
@@ -201,9 +201,9 @@ def dashboard_stats(
     Get aggregated statistics for analytics dashboard.
     Returns scripts per day, by format, and time saved per month.
     """
-    usage_by_day = get_scripts_by_day(days=7)
-    scripts_by_format = get_scripts_by_format()
-    time_saved_by_month = get_time_saved_by_month(months=6)
+    usage_by_day = get_scripts_by_day(days=7, user_id=user["id"])
+    scripts_by_format = get_scripts_by_format(user_id=user["id"])
+    time_saved_by_month = get_time_saved_by_month(months=6, user_id=user["id"])
     
     return DashboardStats(
         usage_by_day=usage_by_day,

@@ -11,6 +11,7 @@ import {
   Lightbulb,
   User,
   FileDown,
+  Mail,
 } from "lucide-react";
 import { sendChatMessage, type OutputFormat } from "../lib/api";
 import { ProjectLogo } from "./ProjectLogo";
@@ -118,6 +119,7 @@ export function ChatInterface() {
   const [conversationId, setConversationId] = useState<string | null>(() =>
     localStorage.getItem(conversationStorageKey),
   );
+  const [exportEmail, setExportEmail] = useState("");
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -396,13 +398,39 @@ in
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-slate-50">
       {/* Toolbar */}
       {messages.length > 1 && (
-        <div className="flex justify-end px-4 pt-3 pb-1">
+        <div className="flex items-center justify-end gap-3 px-4 pt-3 pb-1">
+          {/* Email pill group */}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400 transition-all">
+            <span className="pl-3 text-slate-400">
+              <Mail className="w-4 h-4" />
+            </span>
+            <input
+              type="email"
+              value={exportEmail}
+              onChange={(e) => setExportEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && exportEmail.trim())
+                  exportChatReport(messages, exportEmail.trim(), true);
+              }}
+              placeholder="Enviar por e-mail"
+              className="px-2 py-2 text-sm outline-none w-40 bg-transparent placeholder:text-slate-400"
+            />
+            <button
+              onClick={() => exportChatReport(messages, exportEmail.trim(), true)}
+              disabled={!exportEmail.trim()}
+              title="Enviar conversa por e-mail"
+              className="flex items-center justify-center px-3 py-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-slate-200"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+          {/* PDF export */}
           <button
             onClick={() => exportChatReport(messages)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm whitespace-nowrap"
           >
             <FileDown className="w-4 h-4" />
-            Exportar conversa (PDF)
+            Exportar PDF
           </button>
         </div>
       )}

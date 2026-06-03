@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -29,6 +30,10 @@ Objetivo:
 - Gerar um script pronto para consumo em BI ou extração.
 - Ser claro sobre premissas e limites.
 
+IMPORTANTE: Se a pergunta não tiver relação com dados, SAP, BI, extração, relatórios ou análise de negócio,
+responda com o JSON abaixo e nada mais:
+{"reply": "Essa pergunta não está relacionada ao contexto de geração de scripts SAP. Por favor, envie uma pergunta sobre dados, relatórios ou análise SAP.", "script": "", "language": "none", "notes": "Fora do escopo"}
+
 Formato de resposta obrigatório em JSON válido com as chaves:
 - reply: texto curto explicando o que foi gerado
 - script: script pronto no formato solicitado
@@ -38,8 +43,44 @@ Formato de resposta obrigatório em JSON válido com as chaves:
 Se faltar contexto, faça uma suposição razoável e siga adiante.
 """.strip()
 
+# Palavras-chave que indicam perguntas relevantes ao contexto SAP/dados
+_SAP_KEYWORDS = {
+    "sap", "sql", "abap", "power bi", "powerbi", "power query", "hana",
+    "tabela", "table", "select", "from", "where", "join", "relatório",
+    "relatorio", "extração", "extracao", "dado", "dados", "data", "campo",
+    "campo", "consulta", "query", "estoque", "faturamento", "pedido",
+    "compra", "venda", "nota fiscal", "nf", "cliente", "fornecedor",
+    "material", "planta", "mrp", "mm", "sd", "fi", "co", "pp", "wm",
+    "mseg", "vbrk", "vbrp", "ekko", "ekpo", "mara", "marc", "mard",
+    "bseg", "bkpf", "kna1", "lfa1", "makt", "likp", "lips", "vbak",
+    "vbap", "análise", "analise", "indicador", "kpi", "dashboard",
+    "visualização", "visualizacao", "bi", "erp", "módulo", "modulo",
+    "produção", "producao", "inventário", "inventario", "custo", "lucro",
+    "receita", "despesa", "financeiro", "contabil", "contábil", "ativo",
+    "passivo", "balanco", "balanço", "centro", "distribuição", "distribuicao",
+}
+
+
+def _is_relevant_question(question: str) -> bool:
+    """Returns True if the question is related to SAP/data/BI context."""
+    lower = question.lower()
+    return any(re.search(r'\b' + re.escape(kw) + r'\b', lower) for kw in _SAP_KEYWORDS)
+
+
+_OUT_OF_SCOPE_RESPONSE = GeneratedScript(
+    reply=(
+        "Essa pergunta não está relacionada ao contexto de geração de scripts SAP. "
+        "Por favor, envie uma pergunta sobre dados, relatórios, extração ou análise SAP."
+    ),
+    script="",
+    language="none",
+)
+
 
 def build_local_response(question: str, output_format: str) -> GeneratedScript:
+    if not _is_relevant_question(question):
+        return _OUT_OF_SCOPE_RESPONSE
+
     normalized_question = question.strip()
     format_key = output_format.lower()
 
@@ -96,6 +137,9 @@ def build_local_response(question: str, output_format: str) -> GeneratedScript:
 
 
 def generate_script(question: str, output_format: str) -> GeneratedScript:
+    if not _is_relevant_question(question):
+        return _OUT_OF_SCOPE_RESPONSE
+
     if not SETTINGS.openai_api_key:
         return build_local_response(question, output_format)
 

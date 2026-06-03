@@ -10,6 +10,8 @@ import {
   Zap,
   Target,
   FileDown,
+  Mail,
+  Send,
 } from "lucide-react";
 import { fetchDashboardSummary, type ScriptSummary } from "../lib/api";
 import { ProjectLogo } from "./ProjectLogo";
@@ -34,6 +36,7 @@ export function Dashboard() {
   const [successRate, setSuccessRate] = useState(0);
   const [recentScripts, setRecentScripts] =
     useState<ScriptSummary[]>(fallbackScripts);
+  const [exportEmail, setExportEmail] = useState("");
 
   const loadSummary = () => {
     fetchDashboardSummary()
@@ -96,13 +99,41 @@ export function Dashboard() {
             Geração automatizada de scripts para visualização de dados SAP
           </p>
         </div>
-        <button
-          onClick={handleExport}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm flex-shrink-0"
-        >
-          <FileDown className="w-4 h-4" />
-          Exportar relatório
-        </button>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Email pill group */}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400 transition-all">
+            <span className="pl-3 text-slate-400">
+              <Mail className="w-4 h-4" />
+            </span>
+            <input
+              type="email"
+              value={exportEmail}
+              onChange={(e) => setExportEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && exportEmail.trim())
+                  exportDashboardReport({ scriptsGenerated, timeSavedHours, successRate, recentScripts, email: exportEmail.trim(), emailOnly: true });
+              }}
+              placeholder="Enviar por e-mail"
+              className="px-2 py-2 text-sm outline-none w-44 bg-transparent placeholder:text-slate-400"
+            />
+            <button
+              onClick={() => exportDashboardReport({ scriptsGenerated, timeSavedHours, successRate, recentScripts, email: exportEmail.trim(), emailOnly: true })}
+              disabled={!exportEmail.trim()}
+              title="Enviar relatório por e-mail"
+              className="flex items-center justify-center px-3 py-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-slate-200"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+          {/* PDF export */}
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-sm whitespace-nowrap focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none"
+          >
+            <FileDown className="w-4 h-4" />
+            Exportar PDF
+          </button>
+        </div>
       </div>
 
       {/* Quick Action - Chat */}

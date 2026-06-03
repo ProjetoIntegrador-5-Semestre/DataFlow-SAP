@@ -3,6 +3,11 @@ type UsageRow = { day: string; date: string; scripts: number };
 type TypeRow = { name: string; value: number; color?: string };
 type SavingsRow = { month: string; fullMonth: string; hours: number };
 
+function sendByEmail(email: string, subject: string, body: string) {
+  const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailto, "_self");
+}
+
 export function exportAnalyticsReport(opts: {
   scriptsGenerated: number;
   timeSavedHours: number | string;
@@ -10,9 +15,33 @@ export function exportAnalyticsReport(opts: {
   usageData: UsageRow[];
   typeData: TypeRow[];
   savingsData: SavingsRow[];
+  email?: string;
+  emailOnly?: boolean;
 }) {
-  const { scriptsGenerated, timeSavedHours, successRate, usageData, typeData, savingsData } = opts;
+  const { scriptsGenerated, timeSavedHours, successRate, usageData, typeData, savingsData, email, emailOnly } = opts;
   const date = new Date().toLocaleString("pt-BR");
+
+  if (emailOnly && email) {
+    const usageSummary = usageData.map(u => `  ${u.day}: ${u.scripts} scripts`).join("\n");
+    const typeSummary = typeData.map(t => `  ${t.name}: ${t.value}`).join("\n");
+    const body = [
+      `Relatório Analytics — SAP Script AI`,
+      `Exportado em: ${date}`,
+      ``,
+      `📊 Métricas Gerais`,
+      `  Scripts gerados: ${scriptsGenerated}`,
+      `  Tempo economizado: ${timeSavedHours}h`,
+      `  Taxa de sucesso: ${successRate}%`,
+      ``,
+      `📅 Uso Semanal`,
+      usageSummary,
+      ``,
+      `🗂️ Distribuição por Tipo`,
+      typeSummary,
+    ].join("\n");
+    sendByEmail(email, "Relatório Analytics — SAP Script AI", body);
+    return;
+  }
 
   const usageRows = usageData
     .map(
@@ -96,6 +125,27 @@ export function exportAnalyticsReport(opts: {
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
+
+  if (email) {
+    const usageSummary = usageData.map(u => `  ${u.day}: ${u.scripts} scripts`).join("\n");
+    const typeSummary = typeData.map(t => `  ${t.name}: ${t.value}`).join("\n");
+    const body = [
+      `Relatório Analytics — SAP Script AI`,
+      `Exportado em: ${date}`,
+      ``,
+      `📊 Métricas Gerais`,
+      `  Scripts gerados: ${scriptsGenerated}`,
+      `  Tempo economizado: ${timeSavedHours}h`,
+      `  Taxa de sucesso: ${successRate}%`,
+      ``,
+      `📅 Uso Semanal`,
+      usageSummary,
+      ``,
+      `🗂️ Distribuição por Tipo`,
+      typeSummary,
+    ].join("\n");
+    setTimeout(() => sendByEmail(email, "Relatório Analytics — SAP Script AI", body), 800);
+  }
 }
 
 export function exportDashboardReport(opts: {
@@ -103,9 +153,29 @@ export function exportDashboardReport(opts: {
   timeSavedHours: number | string;
   successRate: number | string;
   recentScripts: { id: any; question: string; output_format: string; reply?: string; script?: string; language?: string; created_at: string }[];
+  email?: string;
+  emailOnly?: boolean;
 }) {
-  const { scriptsGenerated, timeSavedHours, successRate, recentScripts } = opts;
+  const { scriptsGenerated, timeSavedHours, successRate, recentScripts, email, emailOnly } = opts;
   const date = new Date().toLocaleString("pt-BR");
+
+  if (emailOnly && email) {
+    const scriptsSummary = recentScripts.map(s => `  [${s.output_format.toUpperCase()}] ${s.question}`).join("\n");
+    const body = [
+      `Relatório Dashboard — SAP Script AI`,
+      `Exportado em: ${date}`,
+      ``,
+      `📊 Métricas`,
+      `  Scripts gerados: ${scriptsGenerated}`,
+      `  Tempo economizado: ${timeSavedHours}h`,
+      `  Taxa de sucesso: ${successRate}%`,
+      ``,
+      `📄 Scripts Recentes`,
+      scriptsSummary,
+    ].join("\n");
+    sendByEmail(email, "Relatório Dashboard — SAP Script AI", body);
+    return;
+  }
 
   const formatTimeAgo = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
@@ -165,10 +235,46 @@ export function exportDashboardReport(opts: {
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
+
+  if (email) {
+    const scriptsSummary = recentScripts.map(s => `  [${s.output_format.toUpperCase()}] ${s.question}`).join("\n");
+    const body = [
+      `Relatório Dashboard — SAP Script AI`,
+      `Exportado em: ${date}`,
+      ``,
+      `📊 Métricas`,
+      `  Scripts gerados: ${scriptsGenerated}`,
+      `  Tempo economizado: ${timeSavedHours}h`,
+      `  Taxa de sucesso: ${successRate}%`,
+      ``,
+      `📄 Scripts Recentes`,
+      scriptsSummary,
+    ].join("\n");
+    setTimeout(() => sendByEmail(email, "Relatório Dashboard — SAP Script AI", body), 800);
+  }
 }
 
-export function exportChatReport(messages: any[]) {
+export function exportChatReport(messages: any[], email?: string, emailOnly = false) {
   const date = new Date().toLocaleString("pt-BR");
+
+  if (emailOnly && email) {
+    const msgSummary = messages
+      .filter(m => m.id !== "1")
+      .slice(0, 10)
+      .map(m => `  [${m.type === "user" ? "Você" : "IA"}] ${String(m.content).slice(0, 120)}`)
+      .join("\n");
+    const body = [
+      `Conversa SAP Script AI`,
+      `Exportado em: ${date}`,
+      `${messages.length - 1} mensagens`,
+      ``,
+      `💬 Resumo da conversa`,
+      msgSummary,
+    ].join("\n");
+    sendByEmail(email, "Conversa SAP Script AI", body);
+    return;
+  }
+
   const rows = messages
     .filter((m) => m.id !== "1")
     .map((m) => {
@@ -218,4 +324,21 @@ ${rows}
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
+
+  if (email) {
+    const msgSummary = messages
+      .filter(m => m.id !== "1")
+      .slice(0, 10)
+      .map(m => `  [${m.type === "user" ? "Você" : "IA"}] ${String(m.content).slice(0, 120)}`)
+      .join("\n");
+    const body = [
+      `Conversa SAP Script AI`,
+      `Exportado em: ${date}`,
+      `${messages.length - 1} mensagens`,
+      ``,
+      `💬 Resumo da conversa`,
+      msgSummary,
+    ].join("\n");
+    setTimeout(() => sendByEmail(email, "Conversa SAP Script AI", body), 800);
+  }
 }

@@ -234,17 +234,23 @@ def list_user_scripts(user_id: int) -> list[dict[str, Any]]:
 
 def fetch_summary_for_user(user_id: int):
     with get_connection() as conn:
-        scripts = conn.execute(
-            "SELECT COUNT(*) as total FROM generated_scripts WHERE user_id = ?", 
+        total = conn.execute(
+            "SELECT COUNT(*) as total FROM generated_scripts WHERE user_id = ?",
             (user_id,)
         ).fetchone()["total"]
-        
-        # Simulação de horas baseada nos scripts do usuário
+
+        valid = conn.execute(
+            "SELECT COUNT(*) as total FROM generated_scripts WHERE user_id = ? AND language != 'none'",
+            (user_id,)
+        ).fetchone()["total"]
+
+        success_rate = round((valid / total) * 100) if total > 0 else 0
+
         return {
-            "scripts_generated": scripts,
-            "time_saved_hours": round(scripts * 2.4, 1),
-            "active_users": 1, # O próprio usuário
-            "success_rate": 94 if scripts > 0 else 0
+            "scripts_generated": total,
+            "time_saved_hours": round(valid * 2.4, 1),
+            "active_users": 1,
+            "success_rate": success_rate,
         }
 
 
@@ -264,12 +270,13 @@ def estimate_time_saved(script_length: int) -> float:
     return round(hours, 2)
 
 
-def get_scripts_by_day(days: int = 7) -> list[dict[str, Any]]:
+def get_scripts_by_day(days: int = 7, user_id: int | None = None) -> list[dict[str, Any]]:
     """
     Aggregate script generation count by day for the last N days.
     
     Args:
         days: Number of days to look back (default 7)
+        user_id: If provided, filter by this user
         
     Returns:
         List of dicts with 'day' (day of week) and 'count' (number of scripts)
@@ -280,18 +287,32 @@ def get_scripts_by_day(days: int = 7) -> list[dict[str, Any]]:
         # Get data from the last N days
         cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
         
-        rows = connection.execute(
-            """
-            SELECT 
-                DATE(created_at) as script_date,
-                COUNT(*) as script_count
-            FROM generated_scripts
-            WHERE created_at >= ?
-            GROUP BY DATE(created_at)
-            ORDER BY script_date ASC
-            """,
-            (cutoff_date,),
-        ).fetchall()
+        if user_id is not None:
+            rows = connection.execute(
+                """
+                SELECT 
+                    DATE(created_at) as script_date,
+                    COUNT(*) as script_count
+                FROM generated_scripts
+                WHERE created_at >= ? AND user_id = ?
+                GROUP BY DATE(created_at)
+                ORDER BY script_date ASC
+                """,
+                (cutoff_date, user_id),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT 
+                    DATE(created_at) as script_date,
+                    COUNT(*) as script_count
+                FROM generated_scripts
+                WHERE created_at >= ?
+                GROUP BY DATE(created_at)
+                ORDER BY script_date ASC
+                """,
+                (cutoff_date,),
+            ).fetchall()
     
     # Build complete day-by-day result with zero-filled days
     result = []
@@ -315,24 +336,42 @@ def get_scripts_by_day(days: int = 7) -> list[dict[str, Any]]:
     return result
 
 
-def get_scripts_by_format() -> list[dict[str, Any]]:
+def get_scripts_by_format(user_id: int | None = None) -> list[dict[str, Any]]:
     """
     Aggregate script count by output format.
     
+    Args:
+        user_id: If provided, filter by this user
+
     Returns:
         List of dicts with 'name' (format) and 'count' (number of scripts)
     """
     with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT 
-                output_format as format,
-                COUNT(*) as script_count
-            FROM generated_scripts
-            GROUP BY output_format
-            ORDER BY script_count DESC
-            """,
-        ).fetchall()
+        if user_id is not None:
+            rows = connection.execute(
+                """
+                SELECT 
+                    output_format as format,
+                    COUNT(*) as script_count
+                FROM generated_scripts
+                WHERE user_id = ? AND language != 'none'
+                GROUP BY output_format
+                ORDER BY script_count DESC
+                """,
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT 
+                    output_format as format,
+                    COUNT(*) as script_count
+                FROM generated_scripts
+                WHERE language != 'none'
+                GROUP BY output_format
+                ORDER BY script_count DESC
+                """,
+            ).fetchall()
     
     return [
         {
@@ -343,13 +382,14 @@ def get_scripts_by_format() -> list[dict[str, Any]]:
     ]
 
 
-def get_time_saved_by_month(months: int = 6) -> list[dict[str, Any]]:
+def get_time_saved_by_month(months: int = 6, user_id: int | None = None) -> list[dict[str, Any]]:
     """
     Aggregate time saved by month for the last N months.
     Estimates time based on script length (5 min per 100 chars).
     
     Args:
         months: Number of months to look back (default 6)
+        user_id: If provided, filter by this user
         
     Returns:
         List of dicts with 'month' (month name + year) and 'hours' (time saved in hours)
@@ -360,18 +400,32 @@ def get_time_saved_by_month(months: int = 6) -> list[dict[str, Any]]:
         # Get data from the last N months
         cutoff_date = (datetime.now(timezone.utc) - timedelta(days=30*months)).date().isoformat()
         
-        rows = connection.execute(
-            """
-            SELECT 
-                STRFTIME('%Y-%m', created_at) as year_month,
-                SUM(LENGTH(script)) as total_script_length
-            FROM generated_scripts
-            WHERE created_at >= ?
-            GROUP BY STRFTIME('%Y-%m', created_at)
-            ORDER BY year_month ASC
-            """,
-            (cutoff_date,),
-        ).fetchall()
+        if user_id is not None:
+            rows = connection.execute(
+                """
+                SELECT 
+                    STRFTIME('%Y-%m', created_at) as year_month,
+                    SUM(LENGTH(script)) as total_script_length
+                FROM generated_scripts
+                WHERE created_at >= ? AND user_id = ? AND language != 'none'
+                GROUP BY STRFTIME('%Y-%m', created_at)
+                ORDER BY year_month ASC
+                """,
+                (cutoff_date, user_id),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT 
+                    STRFTIME('%Y-%m', created_at) as year_month,
+                    SUM(LENGTH(script)) as total_script_length
+                FROM generated_scripts
+                WHERE created_at >= ? AND language != 'none'
+                GROUP BY STRFTIME('%Y-%m', created_at)
+                ORDER BY year_month ASC
+                """,
+                (cutoff_date,),
+            ).fetchall()
     
     # Convert script length to time saved (5 min per 100 chars = 0.0833 hours per 100 chars)
     result = []

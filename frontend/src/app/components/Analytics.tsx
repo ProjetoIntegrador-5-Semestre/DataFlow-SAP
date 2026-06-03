@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import {
   Calendar,
   TrendingUp,
-  Clock,
+  Zap,
   Download,
   Table,
   BarChart2,
   PieChart as PieIcon,
+  X,
+  FileCode2,
+  ChevronDown,
+  ChevronUp,
+  Mail,
+  Send,
 } from "lucide-react";
 import {
   BarChart,
@@ -27,7 +33,9 @@ import {
 import {
   fetchDashboardSummary,
   fetchDashboardStats,
+  fetchRecentScripts,
   DashboardStats,
+  ScriptSummary,
 } from "../lib/api";
 import { exportAnalyticsReport } from "./export/reports";
 
@@ -73,6 +81,7 @@ export function Analytics() {
   const [scriptsGenerated, setScriptsGenerated] = useState(0);
   const [timeSavedHours, setTimeSavedHours] = useState(0);
   const [successRate, setSuccessRate] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
 
   const [usageData, setUsageData] = useState<UsageDataRow[]>(defaultUsageData);
   const [typeData, setTypeData] = useState(defaultTypeData);
@@ -85,6 +94,39 @@ export function Analytics() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportEmail, setExportEmail] = useState("");
+
+  const [showScriptsModal, setShowScriptsModal] = useState(false);
+  const [allScripts, setAllScripts] = useState<ScriptSummary[]>([]);
+  const [loadingScripts, setLoadingScripts] = useState(false);
+  const [expandedScript, setExpandedScript] = useState<number | null>(null);
+
+  const openScriptsModal = async () => {
+    setShowScriptsModal(true);
+    if (allScripts.length === 0) {
+      setLoadingScripts(true);
+      try {
+        const scripts = await fetchRecentScripts();
+        setAllScripts(scripts);
+      } catch {
+        // silently fail, modal will show empty state
+      } finally {
+        setLoadingScripts(false);
+      }
+    }
+  };
+
+  const formatTimeAgo = (createdAt: string) => {
+    const diffMs = Date.now() - new Date(createdAt).getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 60) return diffMinutes <= 1 ? "agora mesmo" : `${diffMinutes} min atrás`;
+    if (diffHours < 24) return diffHours === 1 ? "1 hora atrás" : `${diffHours} horas atrás`;
+    if (diffDays === 1) return "ontem";
+    return `${diffDays} dias atrás`;
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -116,6 +158,15 @@ export function Analytics() {
             scripts: item.count,
           }));
         setUsageData(usage.length > 0 ? usage : defaultUsageData);
+
+        // Compute streak: consecutive days with scripts > 0, from today backwards
+        const reversedDays = [...statsData.usage_by_day].reverse();
+        let streak = 0;
+        for (const d of reversedDays) {
+          if (d.count > 0) streak++;
+          else break;
+        }
+        setStreakDays(streak);
 
         // Transform scripts by format with colors
         const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
@@ -182,22 +233,50 @@ export function Analytics() {
             Acompanhe métricas e performance do sistema
           </p>
         </div>
-        <button
-          onClick={() =>
-            exportAnalyticsReport({
-              scriptsGenerated,
-              timeSavedHours,
-              successRate,
-              usageData,
-              typeData,
-              savingsData,
-            })
-          }
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none transition-all text-base font-medium"
-        >
-          <Download className="w-4 h-4" aria-hidden="true" />
-          Exportar Relatório
-        </button>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Email pill group */}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-400 transition-all">
+            <span className="pl-3 text-slate-400">
+              <Mail className="w-4 h-4" />
+            </span>
+            <input
+              type="email"
+              value={exportEmail}
+              onChange={(e) => setExportEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && exportEmail.trim())
+                  exportAnalyticsReport({ scriptsGenerated, timeSavedHours, successRate, usageData, typeData, savingsData, email: exportEmail.trim(), emailOnly: true });
+              }}
+              placeholder="Enviar por e-mail"
+              className="px-2 py-2 text-sm outline-none w-44 bg-transparent placeholder:text-slate-400"
+            />
+            <button
+              onClick={() => exportAnalyticsReport({ scriptsGenerated, timeSavedHours, successRate, usageData, typeData, savingsData, email: exportEmail.trim(), emailOnly: true })}
+              disabled={!exportEmail.trim()}
+              title="Enviar relatório por e-mail"
+              className="flex items-center justify-center px-3 py-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-slate-200"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+          {/* PDF export */}
+          <button
+            onClick={() =>
+              exportAnalyticsReport({
+                scriptsGenerated,
+                timeSavedHours,
+                successRate,
+                usageData,
+                typeData,
+                savingsData,
+              })
+            }
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center gap-2 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none transition-all text-sm font-medium whitespace-nowrap shadow-sm"
+          >
+            <Download className="w-4 h-4" aria-hidden="true" />
+            Exportar PDF
+          </button>
+        </div>
       </header>
 
       {/* Period Selector */}
@@ -230,34 +309,56 @@ export function Analytics() {
             val: scriptsGenerated,
             color: "from-blue-600 to-blue-700",
             icon: <TrendingUp className="w-5 h-5" />,
+            clickable: true,
+            desc: "Total de scripts SAP gerados via IA. Clique para ver o histórico completo.",
+            sub: null,
           },
           {
-            label: "Tempo economizado",
-            val: `${timeSavedHours}h`,
+            label: "Sequência de uso",
+            val: streakDays > 0 ? `${streakDays} dia${streakDays > 1 ? "s" : ""}` : "—",
             color: "from-purple-600 to-purple-700",
-            icon: <Clock className="w-5 h-5" />,
+            icon: <Zap className="w-5 h-5" />,
+            clickable: false,
+            desc: streakDays > 0
+              ? "Dias consecutivos com pelo menos 1 script gerado no chat. Continue assim!"
+              : "Gere um script hoje para iniciar sua sequência.",
+            sub: streakDays >= 3 ? `🔥 ${streakDays} dias seguidos` : streakDays > 0 ? "Sequência ativa" : null,
           },
-
           {
             label: "Taxa de sucesso",
             val: `${successRate}%`,
             color: "from-orange-600 to-orange-700",
             icon: <TrendingUp className="w-5 h-5" />,
+            clickable: false,
+            desc: "Percentual de perguntas dentro do escopo SAP que resultaram em scripts válidos.",
+            sub: null,
           },
         ].map((m, i) => (
           <article
             key={i}
-            className={`bg-gradient-to-br ${m.color} rounded-xl p-6 text-white shadow-md`}
+            onClick={m.clickable ? openScriptsModal : undefined}
+            className={`bg-gradient-to-br ${m.color} rounded-xl p-6 text-white shadow-md ${
+              m.clickable ? "cursor-pointer hover:scale-[1.02] hover:shadow-xl transition-all duration-200" : ""
+            }`}
           >
             <div className="flex items-center mb-4">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 {m.icon}
               </div>
+              {m.clickable && (
+                <span className="ml-auto text-xs text-white/70 font-medium">Ver todos →</span>
+              )}
             </div>
             <p className="text-3xl font-bold mb-1 text-white">{m.val}</p>
-            <h3 className="text-sm text-white/90 font-medium uppercase tracking-wider">
+            <h3 className="text-sm text-white/90 font-medium uppercase tracking-wider mb-2">
               {m.label}
             </h3>
+            {m.sub && (
+              <p className="text-xs text-white/80 font-semibold mb-1">{m.sub}</p>
+            )}
+            <p className="text-xs text-white/60 leading-relaxed">
+              {m.desc}
+            </p>
           </article>
         ))}
       </div>
@@ -267,6 +368,93 @@ export function Analytics() {
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <p className="mt-2 text-slate-600">Carregando dados...</p>
+        </div>
+      )}
+
+      {/* Modal: Todos os Scripts */}
+      {showScriptsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setShowScriptsModal(false)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Scripts Gerados</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{allScripts.length} scripts no total</p>
+              </div>
+              <button
+                onClick={() => setShowScriptsModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+              {loadingScripts ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                </div>
+              ) : allScripts.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <FileCode2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                  <p>Nenhum script gerado ainda.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allScripts.map((script) => (
+                    <div
+                      key={script.id}
+                      className="border border-slate-200 rounded-xl overflow-hidden"
+                    >
+                      {/* Script header row */}
+                      <button
+                        onClick={() =>
+                          setExpandedScript(expandedScript === script.id ? null : script.id)
+                        }
+                        className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left"
+                      >
+                        <div className="p-2 bg-slate-100 rounded-lg flex-shrink-0">
+                          <FileCode2 className="w-4 h-4 text-slate-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-slate-800 truncate">
+                            {script.question}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                              {script.output_format.toUpperCase()}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {formatTimeAgo(script.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        {expandedScript === script.id ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Expanded script content */}
+                      {expandedScript === script.id && (
+                        <div className="border-t border-slate-100 bg-slate-950 p-4">
+                          <p className="text-xs text-slate-400 mb-2">{script.reply}</p>
+                          <pre className="text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre-wrap">
+                            {script.script}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
