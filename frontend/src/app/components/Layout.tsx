@@ -137,11 +137,6 @@ export function Layout() {
               iconClassName="h-9 w-9"
               className="md:hidden"
             />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">
-                Scripts automáticos para visualização de dados
-              </p>
-            </div>
           </div>
         </header>
 

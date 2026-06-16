@@ -179,8 +179,18 @@ export function exportDashboardReport(opts: {
 
   const formatTimeAgo = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
-    const diffHours = Math.max(1, Math.round((Date.now() - created) / (1000 * 60 * 60)));
-    return diffHours === 1 ? "1 hora atrás" : `${diffHours} horas atrás`;
+    if (!Number.isFinite(created)) return "agora";
+
+    const diffMs = Math.max(0, Date.now() - created);
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+    if (diffHours < 24) {
+      const hours = Math.max(1, diffHours);
+      return hours === 1 ? "1 hora atrás" : `${hours} horas atrás`;
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+    return diffDays === 1 ? "1 dia atrás" : `${diffDays} dias atrás`;
   };
 
   const scriptRows = recentScripts

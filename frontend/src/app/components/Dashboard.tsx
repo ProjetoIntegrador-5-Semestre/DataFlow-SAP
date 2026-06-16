@@ -63,11 +63,17 @@ export function Dashboard() {
 
   const formatTimeAgo = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
-    const diffHours = Math.max(
-      1,
-      Math.round((Date.now() - created) / (1000 * 60 * 60)),
-    );
-    return diffHours === 1 ? "1 hora atrás" : `${diffHours} horas atrás`;
+    if (!Number.isFinite(created)) return "agora";
+
+    const diffMs = Math.max(0, Date.now() - created);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 60) return diffMinutes <= 1 ? "agora mesmo" : `${diffMinutes} min atrás`;
+    if (diffHours < 24) return diffHours === 1 ? "1 hora atrás" : `${diffHours} horas atrás`;
+    if (diffDays === 1) return "ontem";
+    return `${diffDays} dias atrás`;
   };
 
   const handleExport = () => {
